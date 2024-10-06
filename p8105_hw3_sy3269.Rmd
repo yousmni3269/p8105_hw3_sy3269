@@ -41,6 +41,9 @@ ny_noaa_df =
     tmin = as.integer(tmin)
   )
 
+ny_noaa_df |>
+  drop_na()
+
 ```
 
 
@@ -52,7 +55,7 @@ Also, the variable types for `tmax` and `tmin` were changed to integer as they w
 
 For snowfall, what are the most commonly observed values? Why?
 
-```{r}
+```{r noaa_plot}
 ny_noaa_df |>
   filter(month == 1 | month == 7) |>
   mutate(avg_tmax = mean(tmax)) |>
@@ -78,6 +81,7 @@ Make a two-panel plot showing (i) tmax vs tmin for the full dataset (note that a
 
 
 # Problem 2
+
 ```{r nhanes_data}
 nhanes_accel_df = 
   read_csv("./nhanes_accel.csv", na = c("NA", ",", "")) |>
@@ -111,7 +115,7 @@ nhanes_study_df =
 An accelerometer data collected in the NHANES study was loaded and cleaned. Demographic data of the participants in the NHANES study was also loaded and cleaned. Some of the variables in the demographic data were changed to more self-explanatory value and the type was set as factor. The two data sets were merged into one data frame and participants who did not have full demographic data were excluded and only the participants who were 21 years or older were included. 
 
 
-```{r table}
+```{r nhanes_table}
 nhanes_study_df |>
   group_by(education, sex) |>
   janitor::tabyl(education, sex) |>
@@ -121,7 +125,7 @@ nhanes_study_df |>
 A reader-friendly table for the number of men and women in each education category was made. 
 
 
-```{r distribution}
+```{r nhanes_distn}
 nhanes_study_df |>
   group_by(sex, education) |>
   pivot_longer(
@@ -134,7 +138,77 @@ nhanes_study_df |>
   facet_grid(. ~ education)
 ```
 
-Produce a reader-friendly table for the number of men and women in each education category, and create a visualization of the age distributions for men and women in each education category. Comment on these items.
+## Produce a reader-friendly table for the number of men and women in each education category, and create a visualization of the age distributions for men and women in each education category. Comment on these items.
+
+
+# Problem 3
+```{r citibike_data}
+bike_jan_2020 = 
+  read_csv("./citibike/Jan 2020 Citi.csv", na = c("NA", ".", "")) |>
+  janitor::clean_names()
+
+bike_jan_2020 |>
+  group_by(member_casual) |>
+  summarize(n_obs = n()) |>
+  knitr::kable()
+
+bike_jan_2024 = 
+  read_csv("./citibike/Jan 2024 Citi.csv", na = c("NA", ".", "")) |>
+  janitor::clean_names()
+
+bike_jan_2024 |>
+  group_by(member_casual) |>
+  summarize(n_obs = n()) |>
+  knitr::kable()
+
+bike_july_2020 = 
+  read_csv("./citibike/July 2020 Citi.csv", na = c("NA", ".", "")) |>
+  janitor::clean_names() 
+
+bike_july_2020 |>
+  group_by(member_casual) |>
+  summarize(n_obs = n()) |>
+  knitr::kable()
+
+bike_july_2024 = 
+  read_csv("./citibike/July 2024 Citi.csv", na = c("NA", ".", "")) |>
+  janitor::clean_names() 
+
+bike_july_2024 |> 
+  group_by(member_casual) |>
+  summarize(n_obs = n()) |>
+  knitr::kable()
+
+```
+
+NYC Citi Bike data provided was imported and cleaned. Then, a reader-friendly table showing the total number of rides separating casual riders and Citi Bike members is made for each combination of year and month. 
+For January 2020, there were 984 casual rides and 11436 member rides. 
+For July 2020, there were 2108 casual rides and 16753 member rides. 
+For January 2024, there were 5637 casual rides and 15411 member rides. 
+For July 2024, there were 10894 casual rides and 36262 member rides. 
+
+In all four combination of year and month, there were notably more member rides than casual rides. 
+
+
+```{r citibike_table}
+bike_july_2024 |>
+  count(start_station_name) |>
+  arrange(desc(n)) |>
+  slice(1:5) |>
+  knitr::kable()
+```
+
+A table showing the 5 most popular starting stations for July 2024 with the number of rides originating from these stations is made. 
+
+```{r citibike_plot}
+bike_jan_2020 |>
+  
+
+```
+
+## Make a plot to investigate the effects of day of the week, month, and year on median ride duration. This plot can include one or more panels, but should facilitate comparison across all variables of interest. Comment on your observations from this plot.
+
+There were relatively few electric Citi Bikes in 2020, but many more are available now. For data in 2024, make a figure that shows the impact of month, membership status, and bike type on the distribution of ride duration. Comment on your results.
 
 
 
