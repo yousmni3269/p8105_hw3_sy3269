@@ -1,0 +1,140 @@
+---
+title: "p8105_hw3_sy3269"
+author: "Soomin"
+output: github_document
+---
+
+# Problem 1
+
+```{r setup,  echo = FALSE, message = FALSE}
+library(tidyverse)
+library(lubridate)
+```
+
+The packages required for this homework were 
+
+```{r import_noaa}
+library(p8105.datasets)
+data("ny_noaa") 
+
+ny_noaa |>
+  group_by(id) |>
+  arrange(date) |>
+  summarize(n_obs = n())
+```
+
+The NY NOAA data is imported and studied. There are total of 2595176 observations from 747 different locations in this data set, and there are 7 different variables. The variables are `id` that corresponds to location, `date` that shows when the observation data was collected, `snow`, `snwd`, `tmax` and `tmin`. The NY NOAA data ranges from 1981 to 2020. Depending on the id, the number of available observations differ. It can be seen that there are a lot missing data in this data set. For instance, there are 1157 observations for id `US1NYAB0001`, whereas there are only 214 observations available for id `US1NYAB0016` for the same period of time. 
+
+
+```{r clean_noaa}
+ny_noaa_df = 
+  ny_noaa |> 
+  group_by(id) |>
+  mutate(
+    year = year(date), 
+    month = month(date), 
+    day = day(date)
+  ) |>
+  arrange(year, month, day) |>
+  mutate(
+    tmax = as.integer(tmax), 
+    tmin = as.integer(tmin)
+  )
+
+```
+
+
+The imported NY NOAA data was cleaned and separate variables for year, month, and day were created. The variable units for temperature, precipitation and snowfall data were checked and it was noticed that the temperature data is weird. We cannot have -223 degrees Fahrenheit, Celsius or Kelvin. 
+
+## Ensure observations for temperature, precipitation, and snowfall are given in reasonable units. 
+
+Also, the variable types for `tmax` and `tmin` were changed to integer as they were originally defined as characters. 
+
+For snowfall, what are the most commonly observed values? Why?
+
+```{r}
+ny_noaa_df |>
+  filter(month == 1 | month == 7) |>
+  mutate(avg_tmax = mean(tmax)) |>
+  drop_na() |>
+  ggplot(aes(x = year, y = avg_tmax, color = id)) + 
+  geom_point() +
+  facet_grid(. ~ month) +
+  labs(
+    title = "Average maximum temperature scatterplot",
+    x = "Year",
+    y = "Average Maximum Temp (C)",
+    color = "Location",
+    caption = "Weather data taken from p8105 ny_noaa datasets."
+    )
+    
+  
+```
+
+
+Make a two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable / interpretable structure? Any outliers?
+
+Make a two-panel plot showing (i) tmax vs tmin for the full dataset (note that a scatterplot may not be the best option); and (ii) make a plot showing the distribution of snowfall values greater than 0 and less than 100 separately by year.
+
+
+# Problem 2
+```{r nhanes_data}
+nhanes_accel_df = 
+  read_csv("./nhanes_accel.csv", na = c("NA", ",", "")) |>
+  janitor::clean_names()
+
+nhanes_demo_df = 
+  read_csv("./nhanes_covar.csv", na = c("NA", ".", ""), skip = 4) |>
+  janitor::clean_names() |> 
+  mutate(
+    sex = case_match(
+      sex, 
+      1 ~ "male", 
+      2 ~ "female"), 
+    sex = factor(sex),
+    education = case_match(
+      education, 
+      1 ~ "less than high school", 
+      2 ~ "high school equivalent", 
+      3 ~ "more than high school"),
+    education = factor(education)
+    ) 
+
+nhanes_study_df = 
+  left_join(nhanes_demo_df, nhanes_accel_df, by = "seqn") |>
+  drop_na() |>
+  filter(age >= 21)
+
+```
+
+
+An accelerometer data collected in the NHANES study was loaded and cleaned. Demographic data of the participants in the NHANES study was also loaded and cleaned. Some of the variables in the demographic data were changed to more self-explanatory value and the type was set as factor. The two data sets were merged into one data frame and participants who did not have full demographic data were excluded and only the participants who were 21 years or older were included. 
+
+
+```{r table}
+nhanes_study_df |>
+  group_by(education, sex) |>
+  janitor::tabyl(education, sex) |>
+  knitr::kable()
+```
+
+A reader-friendly table for the number of men and women in each education category was made. 
+
+
+```{r distribution}
+nhanes_study_df |>
+  group_by(sex, education) |>
+  pivot_longer(
+    cols = min1:min1440, 
+    names_to = "minute",
+    values_to = "mims", 
+  ) |>
+  ggplot(aes(x = age, y = mims, color = sex)) + 
+  geom_point() +
+  facet_grid(. ~ education)
+```
+
+Produce a reader-friendly table for the number of men and women in each education category, and create a visualization of the age distributions for men and women in each education category. Comment on these items.
+
+
+
