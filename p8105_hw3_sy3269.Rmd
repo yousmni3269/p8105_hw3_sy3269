@@ -201,7 +201,7 @@ bike_july_2024 |>
 A table showing the 5 most popular starting stations for July 2024 with the number of rides originating from these stations is made. 
 
 ```{r citibike_plot}
-bike_jan_2020 |>
+bike_jan_2020 
   
 
 ```
