@@ -1,6 +1,6 @@
 ---
 title: "p8105_hw3_sy3269"
-author: "Soomin"
+author: "Soomin You"
 output: github_document
 ---
 
@@ -11,7 +11,7 @@ library(tidyverse)
 library(lubridate)
 ```
 
-The packages required for this homework were 
+The packages required for this homework were loaded (e.g. `tidyverse` and `lubridate`).
 
 ```{r import_noaa}
 library(p8105.datasets)
@@ -27,9 +27,8 @@ The NY NOAA data is imported and studied. There are total of 2595176 observation
 
 
 ```{r clean_noaa}
-ny_noaa_df = 
+clean_ny_noaa = 
   ny_noaa |> 
-  group_by(id) |>
   mutate(
     year = year(date), 
     month = month(date), 
@@ -38,44 +37,69 @@ ny_noaa_df =
   arrange(year, month, day) |>
   mutate(
     tmax = as.integer(tmax), 
-    tmin = as.integer(tmin)
+    tmin = as.integer(tmin), 
+    tmax = tmax/10, 
+    tmin = tmin/10, 
+    prcp = prcp/10
   )
-
-ny_noaa_df |>
-  drop_na()
-
 ```
 
 
-The imported NY NOAA data was cleaned and separate variables for year, month, and day were created. The variable units for temperature, precipitation and snowfall data were checked and it was noticed that the temperature data is weird. We cannot have -223 degrees Fahrenheit, Celsius or Kelvin. 
+The imported NY NOAA data was cleaned and separate variables for year, month, and day were created. The variable types for `tmax` and `tmin` were changed to integer as they were originally defined as characters. 
 
-## Ensure observations for temperature, precipitation, and snowfall are given in reasonable units. 
+Also, the variable units for the given data was checked. To ensure that all data for precipitation, snowfall and snow depth are given in consistent unit of mm, `prcp` values given in tenths of mm were adjusted. Similarly, to ensure the temperature values are given in Celsius, both the `tmax` and `tmin` values, which were given in tenths of Celsius, were adjusted. 
 
-Also, the variable types for `tmax` and `tmin` were changed to integer as they were originally defined as characters. 
-
-For snowfall, what are the most commonly observed values? Why?
-
-```{r noaa_plot}
-ny_noaa_df |>
-  filter(month == 1 | month == 7) |>
-  mutate(avg_tmax = mean(tmax)) |>
+```{r}
+clean_ny_noaa |>
   drop_na() |>
+  count(snow) |>
+  filter(n == max(n)) |>
+  pull(snow)
+```
+
+The most commonly observed value is 0 for snowfall. It probably means that there are more days that did not snow at all throughout the years, which sounds reasonable considering that there are four different seasons in New York. 
+
+```{r noaa_plot, eval = FALSE}
+jan_tmax = 
+  clean_ny_noaa |>
+  group_by(month, id) |>
+  drop_na() |>
+  filter(month == 1) |>
+  summarize(
+    avg_tmax = mean(tmax, na.rm = TRUE)) 
+
+jan_tmax |>
   ggplot(aes(x = year, y = avg_tmax, color = id)) + 
   geom_point() +
-  facet_grid(. ~ month) +
   labs(
     title = "Average maximum temperature scatterplot",
     x = "Year",
     y = "Average Maximum Temp (C)",
     color = "Location",
     caption = "Weather data taken from p8105 ny_noaa datasets."
-    )
-    
+  )
+
+jul_plot = 
+  clean_ny_noaa |>
+  filter(month ==7) |>
+  mutate(avg_tmax = mean(tmax)) |>
+  drop_na() |>
+  ggplot(aes(x = year, y = avg_tmax, color = id)) +
+  geom_point() + 
+  labs(
+    title = "Average July maximum temperature scatterplot",
+    x = "Year",
+    y = "Average Maximum Temp (C)",
+    color = "Location",
+    caption = "Weather data taken from p8105 ny_noaa datasets."
+  )
+
+jan_plot / jul_plot 
   
 ```
 
 
-Make a two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable / interpretable structure? Any outliers?
+## Make a two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable / interpretable structure? Any outliers?
 
 Make a two-panel plot showing (i) tmax vs tmin for the full dataset (note that a scatterplot may not be the best option); and (ii) make a plot showing the distribution of snowfall values greater than 0 and less than 100 separately by year.
 
@@ -104,19 +128,20 @@ nhanes_demo_df =
     education = factor(education)
     ) 
 
-nhanes_study_df = 
+nhanes_data_df = 
   left_join(nhanes_demo_df, nhanes_accel_df, by = "seqn") |>
   drop_na() |>
-  filter(age >= 21)
-
+  filter(age >= 21) 
 ```
 
+An accelerometer data collected in the NHANES study was loaded and cleaned. Demographic data of the participants in the NHANES study was also loaded and cleaned. 
 
-An accelerometer data collected in the NHANES study was loaded and cleaned. Demographic data of the participants in the NHANES study was also loaded and cleaned. Some of the variables in the demographic data were changed to more self-explanatory value and the type was set as factor. The two data sets were merged into one data frame and participants who did not have full demographic data were excluded and only the participants who were 21 years or older were included. 
+Some of the variables in the demographic data were changed to more self-explanatory values and their types were changed to factor. For instance, values for `sex` variable was changed from 1 and 2 to male and female. 
 
+In addition, the two data sets were merged into one data frame and participants who did not have full demographic data were excluded. Also, only the participants who were 21 years or older were included in the merged data set. 
 
 ```{r nhanes_table}
-nhanes_study_df |>
+nhanes_data_df |>
   group_by(education, sex) |>
   janitor::tabyl(education, sex) |>
   knitr::kable()
@@ -124,21 +149,43 @@ nhanes_study_df |>
 
 A reader-friendly table for the number of men and women in each education category was made. 
 
-
-```{r nhanes_distn}
-nhanes_study_df |>
-  group_by(sex, education) |>
+```{r nhanes_vis}
+nhanes_data_df |>
   pivot_longer(
-    cols = min1:min1440, 
+    cols = min1:min1440,
     names_to = "minute",
-    values_to = "mims", 
+    values_to = "mims",
+    names_prefix = "min"
   ) |>
-  ggplot(aes(x = age, y = mims, color = sex)) + 
-  geom_point() +
+  group_by(seqn, sex, age, education) |>
+  summarize(total_activity = sum(mims, na.rm = TRUE)) |>
+  ggplot(aes(x = age, fill = sex)) +
+  geom_histogram(position = "dodge") + 
   facet_grid(. ~ education)
 ```
 
-## Produce a reader-friendly table for the number of men and women in each education category, and create a visualization of the age distributions for men and women in each education category. Comment on these items.
+Prior to creating a graph, the data was reformatted using `pivot_longer`. Then, `group_by` and `summarize` function was used to calculate the total_activity that sums up the accelerometer data measured every minute throughout the day. A visualization of the age distributions for men and women in each education category was created. 
+
+##COMMENT ON THEM?? 
+
+```{r age_distribution}
+nhanes_data_df |>
+  pivot_longer(
+    cols = min1:min1440,
+    names_to = "minute",
+    values_to = "mims",
+    names_prefix = "min"
+  ) |>
+  group_by(seqn, sex, age, education) |>
+  summarize(total_activity = sum(mims, na.rm = TRUE)) |>
+  ggplot(aes(x = age, y = total_activity, color = sex)) + 
+  geom_point() +
+  geom_smooth(se = FALSE) + 
+  facet_grid(. ~ education)
+```
+
+## Comment on your plot.
+
 
 
 # Problem 3
@@ -147,64 +194,92 @@ bike_jan_2020 =
   read_csv("./citibike/Jan 2020 Citi.csv", na = c("NA", ".", "")) |>
   janitor::clean_names()
 
-bike_jan_2020 |>
-  group_by(member_casual) |>
-  summarize(n_obs = n()) |>
-  knitr::kable()
-
 bike_jan_2024 = 
   read_csv("./citibike/Jan 2024 Citi.csv", na = c("NA", ".", "")) |>
   janitor::clean_names()
 
+bike_jul_2020 = 
+  read_csv("./citibike/July 2020 Citi.csv", na = c("NA", ".", "")) |>
+  janitor::clean_names() 
+
+bike_jul_2024 = 
+  read_csv("./citibike/July 2024 Citi.csv", na = c("NA", ".", "")) |>
+  janitor::clean_names() 
+```
+
+NYC Citi Bike data provided was imported and cleaned. 
+
+```{r jan_2020}
+bike_jan_2020 |>
+  group_by(member_casual) |>
+  summarize(n_obs = n()) |>
+  knitr::kable()
+```
+
+A reader friendly table showing the total number of rides separating casual riders and Citi Bike members is made for January 2020 data. There were 984 casual rides and 11436 member rides. 
+
+```{r jan_2024}
 bike_jan_2024 |>
   group_by(member_casual) |>
   summarize(n_obs = n()) |>
   knitr::kable()
-
-bike_july_2020 = 
-  read_csv("./citibike/July 2020 Citi.csv", na = c("NA", ".", "")) |>
-  janitor::clean_names() 
-
-bike_july_2020 |>
-  group_by(member_casual) |>
-  summarize(n_obs = n()) |>
-  knitr::kable()
-
-bike_july_2024 = 
-  read_csv("./citibike/July 2024 Citi.csv", na = c("NA", ".", "")) |>
-  janitor::clean_names() 
-
-bike_july_2024 |> 
-  group_by(member_casual) |>
-  summarize(n_obs = n()) |>
-  knitr::kable()
-
 ```
 
-NYC Citi Bike data provided was imported and cleaned. Then, a reader-friendly table showing the total number of rides separating casual riders and Citi Bike members is made for each combination of year and month. 
-For January 2020, there were 984 casual rides and 11436 member rides. 
-For July 2020, there were 2108 casual rides and 16753 member rides. 
-For January 2024, there were 5637 casual rides and 15411 member rides. 
-For July 2024, there were 10894 casual rides and 36262 member rides. 
+A reader friendly table showing the total number of rides separating casual riders and Citi Bike members is made for January 2024 data. There were 5637 casual rides and 15411 member rides. 
+
+```{r jul_2020}
+bike_jul_2020 |>
+  group_by(member_casual) |>
+  summarize(n_obs = n()) |>
+  knitr::kable()
+```
+
+A reader friendly table showing the total number of rides separating casual riders and Citi Bike members is made for July 2020 data. There were 2108 casual rides and 16753 member rides. 
+
+```{r jul_2024}
+bike_jul_2024 |> 
+  group_by(member_casual) |>
+  summarize(n_obs = n()) |>
+  knitr::kable()
+```
+
+A reader friendly table showing the total number of rides separating casual riders and Citi Bike members is made for July 2020 data. There were 10894 casual rides and 36262 member rides. 
 
 In all four combination of year and month, there were notably more member rides than casual rides. 
 
 
 ```{r citibike_table}
-bike_july_2024 |>
+bike_jul_2024 |>
   count(start_station_name) |>
   arrange(desc(n)) |>
   slice(1:5) |>
   knitr::kable()
 ```
 
-A table showing the 5 most popular starting stations for July 2024 with the number of rides originating from these stations is made. 
+A table showing the 5 most popular starting stations for July 2024 with the number of rides originating from these stations is made. The most popular starting station is Pier 61 at Chelsea Piers. 
 
-```{r citibike_plot}
-bike_jan_2020 
-  
+```{r citibike_merge}
+bike_jan_2020 = mutate(bike_jan_2020, year = 2020) 
+bike_jan_2024 = mutate(bike_jan_2024, year = 2024)
+bike_jan = bind_rows(bike_jan_2020, bike_jan_2024)
+
+bike_jan |>
+  group_by(weekdays, year) |>
+  summarize(median_duration = median(duration)) |>
+  arrange(desc(median_duration)) |>
+  ggplot(aes(x = weekdays, y = median_duration, fill = year))+
+  geom_col(position = "dodge")
+
+
+bike_jul_2020 = mutate(bike_july_2020, month_year = "jul_2020")
+
+bike_jul_2024 = mutate(bike_july_2024, month_year = "jul_2024")
+
+
 
 ```
+
+
 
 ## Make a plot to investigate the effects of day of the week, month, and year on median ride duration. This plot can include one or more panels, but should facilitate comparison across all variables of interest. Comment on your observations from this plot.
 
