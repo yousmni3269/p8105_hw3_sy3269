@@ -6,7 +6,7 @@ output: github_document
 
 # Problem 1
 
-```{r setup,  echo = FALSE, message = FALSE}
+```{r setup, echo = FALSE, message = FALSE}
 library(tidyverse)
 library(lubridate)
 library(patchwork)
@@ -28,11 +28,16 @@ scale_colour_discrete = scale_colour_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
 ```
 
-The packages required for this homework (e.g. `tidyverse` and `lubridate`) were loaded. 
+The packages required for this homework (e.g. `tidyverse` and `lubridate`) were loaded and settings were applied.  
 
 ```{r noaa}
 library(p8105.datasets)
 data("ny_noaa") 
+
+ny_noaa |>
+  group_by(id) |>
+  summarize(n_obs_per_id = n()) |>
+  view()
 
 clean_ny_noaa = 
   ny_noaa |> 
@@ -41,36 +46,36 @@ clean_ny_noaa =
     tmin = as.integer(tmin), 
     tmax = tmax/10, 
     tmin = tmin/10, 
-    prcp = prcp/10, 
-    day = floor_date(date, unit = "day"),
-    month = floor_date(date, unit = "month"), 
-    year = floor_date(date, unit = "year")
+    prcp = prcp/10,     
+    year = year(date),
+    month = month(date),
+    day = day(date)
   ) |>
-  arrange(year, month, day) 
+  arrange(year, month, day) |>
+  drop_na()
 
 clean_ny_noaa |>
   group_by(id) |>
-  summarize(n_obs_per_id = n())
+  summarize(n_obs_per_id = n()) |>
+  view()
 
 clean_ny_noaa |>
   group_by(year) |>
-  summarize(n_obs_per_yr = n())
+  summarize(n_obs_per_yr = n()) |>
+  view()
 ```
 
-The NY NOAA data was imported first. Then, the data was cleaned and studied. 
+The NY NOAA data was imported and studied.  
 
-There are total of 2595176 observations from 747 different locations, ranging from year 1981 to 2020, in this data set. 
+In the original NOAA data set, there are total of 2,595,176 observations from 747 different locations, ranging from year 1981 to 2020. Also, there are 7 different variables as follows: `id` that corresponds to the location, `date` that shows when the observation data was collected, `snow` for snowfall amount, `snwd` for snow depth, `tmax` for maximum temperature  and `tmin` for minimum temperature. 
 
-There were originally 7 different variables as follows: `id` that corresponds to the location, `date` that shows when the observation data was collected, `snow` for snowfall amount, `snwd` for snow depth, `tmax` for maximum temperature  and `tmin` for minimum temperature. Three additional variables for `year`, `month`, and `date` were added as a part of cleaning. 
+Then, the data was cleaned and three additional variables for `year`, `month`, and `date` were added. Any observation with missing data were excluded for later analysis. 
 
-It was observed that the number of available observations differ depending on the id. For instance, there are 1157 observations for id `US1NYAB0001`, whereas there are only 214 observations available for id `US1NYAB0016`. Also, depending on the year, the total number of observations differ. It can be seen that there are a lot missing data in this data set. 
+In addition, some one the variables were mutated so that they have reasonable units. For instance, to ensure that all data for precipitation, snowfall and snow depth are given in consistent unit of mm, `prcp` values given in tenths of mm were adjusted. Similarly, to ensure the temperature values are given in Celsius, both the `tmax` and `tmin` values that were given in tenths of Celsius were changed. The variable types for `tmax` and `tmin` were also changed to integer as they were originally defined as characters. 
 
-In addition, the variable units for the given data was checked. To ensure that all data for precipitation, snowfall and snow depth are given in consistent unit of mm, `prcp` values given in tenths of mm were adjusted. Similarly, to ensure the temperature values are given in Celsius, both the `tmax` and `tmin` values, which were given in tenths of Celsius, were adjusted. 
+The cleaned data was again checked and it was found that with missing data removed, there were only 1,222,433 observations from 214 locations. 
 
-The variable types for `tmax` and `tmin` were also changed to integer as they were originally defined as characters. 
-
-
-```{r clean_noaa}
+```{r noaa_snow}
 clean_ny_noaa |>
   drop_na() |>
   count(snow) |>
@@ -80,13 +85,10 @@ clean_ny_noaa |>
 
 The most commonly observed value is 0 for snowfall. It probably means that there are more days that did not snow at all throughout the years, which sounds reasonable considering that there are four different seasons in New York. 
 
-
-```{r clean_noaa_plot, eval = FALSE, echo = FALSE}
+```{r noaa_tmax}
 clean_ny_noaa |>
   group_by(id, year, month) |>
-  drop_na() |>
-  summarize(
-    mean_tmax = mean(tmax)) |>
+  summarize(mean_tmax = mean(tmax)) |>
   filter(month == 1 | month == 7) |>
   ggplot(aes(x = year, y = mean_tmax)) + 
   geom_point() + 
@@ -100,17 +102,23 @@ clean_ny_noaa |>
   )
 ```
 
-A two-panel plot showing the average maximum temperature in January and in July in each station across the years is shown above. The average maximum temperatures in July seem to be more consistent over the time compared to the average maximum temperatures in January. There are only few outliers that fall below the over distribution in July whereas there are several outliers in both upper and lower area over the distribution in January plot. 
+A two-panel plot showing the average maximum temperature in January and July for each station across the years is shown above. The average maximum temperatures in July seem to be more consistent over the time compared to the average maximum temperatures in January. There is only one notable outlier that fall below the overall distribution in July of late 1980s where are there are several outstanding outliers in both upper and lower area of the distribution in January plot. 
 
-## Is there any observable / interpretable structure? Any outliers?
 
-```{r temp_plot}
+```{r noaa_temp, eval = FALSE, echo = FALSE}
 clean_ny_noaa |>
   group_by(tmax, tmin, id, year, month) |>
   summarize() |>
-  drop_na() |>
-  ggplot(aes(x = tmax, y = tmin, )) + 
-  geom_point()
+  ggplot(aes(x = tmax, y = tmin)) +   
+  geom_line(aes(y = tmax, color = "tmax")) +
+  geom_line(aes(y = tmin, color = "tmin"))
+
+clean_ny_noaa |>
+  filter(snow > 0, snow <100) |>
+  group_by(snow, year, id) |>
+  summarize() |>
+  ggplot(aes(x = year, y = snow)) +
+  geom_co()
 ```
 
 
@@ -154,7 +162,7 @@ nhanes_demo_df =
 
 nhanes_data_df = 
   left_join(nhanes_demo_df, nhanes_accel_df, by = "seqn") |>
-  drop_na() |>
+  drop_na(age, bmi, education) |>
   filter(age >= 21) 
 ```
 
@@ -162,7 +170,7 @@ An accelerometer data collected in the NHANES study was loaded and cleaned. Demo
 
 Some of the variables in the demographic data were changed to more self-explanatory values and their types were changed to factor. For instance, values for `sex` variable was changed from 1 and 2 to male and female. 
 
-In addition, the two data sets were merged into one data frame and participants who did not have full demographic data were excluded. Also, only the participants who were 21 years or older were included in the merged data set. 
+In addition, the two data sets were merged into one data frame and participants who did not have full demographic data were excluded. Also, only the participants who were 21 years or older were included in the final data set `nhanes_data_df.`
 
 ```{r nhanes_table}
 nhanes_data_df |>
@@ -173,14 +181,17 @@ nhanes_data_df |>
 
 A reader-friendly table for the number of men and women in each education category was made. 
 
-```{r histogram}
-nhanes_data_df |>
+```{r age_distribution}
+nhanes_data_df = 
+  nhanes_data_df |>
   pivot_longer(
     cols = min1:min1440,
     names_to = "minute",
     values_to = "mims",
     names_prefix = "min"
-  ) |>
+  )
+
+nhanes_data_df |>
   group_by(seqn, sex, age, education) |>
   summarize(total_activity = sum(mims, na.rm = TRUE)) |>
   ggplot(aes(x = age, fill = sex)) +
@@ -196,21 +207,14 @@ nhanes_data_df |>
 
 Prior to creating a graph, the data was reformatted using `pivot_longer`. Then, `group_by` and `summarize` function was used to calculate the total_activity that sums up the accelerometer data measured every minute throughout the day. A visualization of the age distributions for men and women in each education category was created. 
 
-For education level 'more than high school,' there are more of the younger participants who are under 40 than the older participants. There are four age groups with more than 4 participants under 40 whereas there are only two age groups with 4 for participants above 40. 
+For education level 'more than high school,' there are more of the younger participants who are under 40 than the older participants. The distribution for both male and female are skewed to the right. 
 
-For 'less than high school' level, there are greater number of participants who are over 40. 
+For 'less than high school' level, there are greater number of participants who are over 40. The distribution is left skewed for both male and female participants. 
 
-For 'high school equivalent' level, there 
+For 'high school equivalent' level, male distribution is bimodal whereas female distribution is left-skewed.  
 
-
-```{r age_distribution}
+```{r age_activities_plot}
 nhanes_data_df |>
-  pivot_longer(
-    cols = min1:min1440,
-    names_to = "minute",
-    values_to = "mims",
-    names_prefix = "min"
-  ) |>
   group_by(seqn, sex, age, education) |>
   summarize(total_activity = sum(mims, na.rm = TRUE)) |>
   ggplot(aes(x = age, y = total_activity, color = sex)) + 
@@ -218,7 +222,7 @@ nhanes_data_df |>
   geom_smooth(se = FALSE) + 
   facet_grid(. ~ education) +
   labs(
-    title = "Accelerometer data over 24-hour of participants in different education levels",
+    title = "Age distribution of Accelerometer data of participants in different education levels",
     x = "Age",
     y = "Total activity",
     caption = "NHANES data of participants who are greater than or equal to 21 years of age are taken from .csv file provided in P8105."
@@ -227,8 +231,23 @@ nhanes_data_df |>
 
 Overall, the younger the participants are, the higher the total activity is for both female and male regardless of the education level. The regression line for both males and females in all three different education levels have similar tendencies. However, in 'high school equivalent' group, there is a female participant around 30 who has a relatively low total-activity observation compared to females in her age and another female participant around the same age with a notably high observation. 
 
-It can be also seen that in 'high school equivalent' and 'more than high school' groups, females tend to have higher total activity than males in all age groups. However, for 'less than high school' group, only female participants who are younger than 40 have higher total activity than males; for participants over 40, higher total activity observations can be found in males according to the  regression line added with `geom_smooth`. 
+It can be also seen that in 'high school equivalent' and 'more than high school' groups, females tend to have higher total activity than males in all age groups. However, for 'less than high school' group, only female participants who are younger than 40 have higher total activity than males; for participants over 40, higher total activity observations can be found in males according to the  regression line added with `geom_smooth`.
 
+```{r activity_time}
+nhanes_data_df |>
+  group_by(seqn, hour = rep(1:24, times = 228, each = 60), education, sex) |>
+  summarize(mims_hr = sum(mims, na.rm = TRUE), .groups = 'drop') |>
+  ggplot(aes(x = hour, y = mims_hr, color = sex)) + 
+  geom_point(alpha = 0.5, size = 0.5) + 
+  geom_smooth(se = FALSE) + 
+  facet_grid(. ~ education) + 
+  labs(
+    title = "Accelerometer data of participants participants in different education levels over a course of the day", 
+    x = "Hour", 
+    y = "MIMS for every hour", 
+    caption = "NHANES data of participants who are greater than or equal to 21 years of age are taken from .csv file provided in P8105."
+  )
+```
 
 
 # Problem 3
@@ -236,60 +255,44 @@ It can be also seen that in 'high school equivalent' and 'more than high school'
 ```{r citibike_data}
 bike_jan_2020 = 
   read_csv("./citibike/Jan 2020 Citi.csv", na = c("NA", ".", "")) |>
-  janitor::clean_names()
+  janitor::clean_names() |>
+  mutate(year = 2020, month = "January") 
 
 bike_jan_2024 = 
   read_csv("./citibike/Jan 2024 Citi.csv", na = c("NA", ".", "")) |>
-  janitor::clean_names()
+  janitor::clean_names() |>
+  mutate(year = 2024, month = "January")
 
 bike_jul_2020 = 
   read_csv("./citibike/July 2020 Citi.csv", na = c("NA", ".", "")) |>
-  janitor::clean_names() 
+  janitor::clean_names() |>
+  mutate(year = 2020, month = "July")
 
 bike_jul_2024 = 
   read_csv("./citibike/July 2024 Citi.csv", na = c("NA", ".", "")) |>
-  janitor::clean_names() 
+  janitor::clean_names() |>
+  mutate(year = 2024, month = "July")
+
+bike_data = bind_rows(bike_jan_2020, bike_jan_2024, bike_jul_2020, bike_jul_2024)
+
+bike_data |>
+  group_by(member_casual, year, month) |> 
+  summarize(n_obs = n()) |>
+  pivot_wider(
+    names_from = c(month, year),
+    values_from = n_obs
+  ) |>
+  knitr::kable()
 ```
 
 NYC Citi Bike data provided was imported and cleaned. 
 
-```{r jan_2020}
-bike_jan_2020 |>
-  group_by(member_casual) |>
-  summarize(n_obs = n()) |>
-  knitr::kable()
-```
+A reader friendly table showing the total number of rides separating casual riders and Citi Bike members is made for all four combinations: January 2020, July 2020, January 2024, and July 2024. 
 
-A reader friendly table showing the total number of rides separating casual riders and Citi Bike members is made for January 2020 data. There were 984 casual rides and 11436 member rides. 
+In all four combination of year and month, there were notably more member rides than casual rides. Both member rides increased in 2024 compared to 2020 for both month January and July. 
 
-```{r jan_2024}
-bike_jan_2024 |>
-  group_by(member_casual) |>
-  summarize(n_obs = n()) |>
-  knitr::kable()
-```
+There tends to more rides in July than in January, possibly due to weather.
 
-A reader friendly table showing the total number of rides separating casual riders and Citi Bike members is made for January 2024 data. There were 2108 casual rides and 16753 member rides. 
-
-```{r jul_2020}
-bike_jul_2020 |>
-  group_by(member_casual) |>
-  summarize(n_obs = n()) |>
-  knitr::kable()
-```
-
-A reader friendly table showing the total number of rides separating casual riders and Citi Bike members is made for July 2020 data. There were 5637 casual rides and 15411 member rides. 
-
-```{r jul_2024}
-bike_jul_2024 |> 
-  group_by(member_casual) |>
-  summarize(n_obs = n()) |>
-  knitr::kable()
-```
-
-A reader friendly table showing the total number of rides separating casual riders and Citi Bike members is made for July 2020 data. There were 10894 casual rides and 36262 member rides. 
-
-In all four combination of year and month, there were notably more member rides than casual rides. 
 
 ```{r citibike_table}
 bike_jul_2024 |>
@@ -299,98 +302,89 @@ bike_jul_2024 |>
   knitr::kable()
 ```
 
-A table showing the 5 most popular starting stations for July 2024 with the number of rides originating from these stations is made. The most popular starting station is Pier 61 at Chelsea Piers. 
+A table showing the 5 most popular starting stations for July 2024 with the number of rides originating from these stations is made. The most popular starting station is Pier 61 at Chelsea Piers with 163 rides.   
 
 ```{r citibike_merge}
-bike_jan_2020 = mutate(bike_jan_2020, year = 2020, month = "jan") 
-bike_jan_2024 = mutate(bike_jan_2024, year = 2024, month = "jan")
-bike_jan = bind_rows(bike_jan_2020, bike_jan_2024)
-
-bike_jan_plot = 
-  bike_jan |>
-  group_by(weekdays, year) |>
-  summarize(median_duration = median(duration)) |> 
+bike_data |>
+  group_by(weekdays, year, month) |>
+  summarize(median_duration = median(duration)) |>
   mutate(
     weekdays = 
       factor(weekdays, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))) |>
   ggplot(aes(x = weekdays, y = median_duration, fill = factor(year))) +
-  geom_bar(stat = "identity", position = position_dodge()) +
-  ylim(0, 18) + 
+  geom_col(position = "dodge") + 
+  facet_grid(. ~ month) + 
   labs(
     x = "Weekdays",
     y = "Median duration of ride",
-    title = "Duration of Citibike rides in January",
+    title = "Duration of Citibike rides in January and July",
     fill = "Year",
-    caption = "Citibike January data of 2020 and 2024 provided by P8105 was used."
-  ) 
-
-bike_jul_2020 = mutate(bike_jul_2020, year = 2020, month = "jul")
-bike_jul_2024 = mutate(bike_jul_2024, year = 2024, month = "jul")
-bike_jul = bind_rows(bike_jul_2020, bike_jul_2024)
-
-bike_jul_plot = 
-  bike_jul |>
-  group_by(weekdays, year) |>
-  summarize(median_duration = median(duration)) |> 
-  mutate(
-    weekdays = 
-      factor(weekdays, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))) |>
-  ggplot(aes(x = weekdays, y = median_duration, fill = factor(year))) +
-  geom_bar(stat = "identity", position = position_dodge()) +
-  ylim(0, 18) + 
-  labs(
-    x = "Weekdays",
-    y = "Median duration of ride",
-    title = "Duration of Citibike rides in July",
-    fill = "Year",
-    caption = "Citibike July data of 2020 and 2024 provided by P8105 was used."
-  )
-
-bike_jan_plot + bike_jul_plot 
+    caption = "Citibike data provided by P8105 was used."
+  ) +  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-A plot showing the median duration of ride for every weekday is shown for month of January and July, comparing 2020 and 2024 data sets. It can be seen that for both January and July, the overall median duration of ride decreased in 2024, compared to 2020. The decrease in July is notably big compared to the decrease in Janauary. This can be speculated that...
+A plot showing the median duration of ride for every day of the week is shown for the month of January and July, comparing 2020 and 2024 data sets. It can be seen that for both January and July, the overall median duration of ride decreased in 2024, compared to in 2020. The decrease in July is especially notable compared to the one in January. 
 
-Make a plot to investigate the effects of day of the week, month, and year on median ride duration. This plot can include one or more panels, but should facilitate comparison across all variables of interest. Comment on your observations from this plot.
+The longest median duration can be seen in July 2020 data, especially during the weekends. However, the median duration of rides is not significantly greater in the weekends for 2024 data. 
 
 ```{r electric_bike_plot}
-bike_2024 = bind_rows(bike_jan_2024, bike_jul_2024)
-
-bike_2024_jan = 
-  bike_2024 |>
-  group_by(month, member_casual, rideable_type) |>
-  summarize(median_duration = median(duration)) |>
-  filter(month == "jan") |>
-  ggplot(aes(x = member_casual, y = median_duration, fill = rideable_type)) + 
-  geom_bar(stat = "identity", position = position_dodge()) +
-  ylim(0, 18) + 
+bike_2024_month = 
+  bike_data |>
+  filter(year == 2024) |>
+  group_by(duration, month, member_casual, rideable_type) |>
+  ggplot(aes(x = duration, fill = month)) + 
+  geom_histogram(position = "dodge") +
   labs(
-    x = "Membership Type",
-    y = "Median duration of ride",
-    title = "Duration of Citibike rides in January 2024",
-    fill = "Bike Type",
-    caption = "2024 Citibike data provided by P8105 was used.") 
+    x = "Duration of Ride",
+    y = "Count",
+    title = "Duration of Citibike rides in 2024",
+    color = "Month",
+    caption = "2024 Citibike data provided by P8105 was used.") +
+   theme(plot.caption = element_text(size = 10, hjust = 0.5),
+        plot.margin = margin(t = 10, b = 20, l = 10, r = 10)) 
 
-
-bike_2024_jul = 
-  bike_2024 |>
-  group_by(month, member_casual, rideable_type) |>
-  summarize(median_duration = median(duration)) |>
-  filter(month == "jul") |>
-  ggplot(aes(x = member_casual, y = median_duration, fill = rideable_type)) + 
-  geom_bar(stat = "identity", position = position_dodge()) +
-  ylim(0, 18) + 
+bike_2024_bike = 
+  bike_data |>
+  filter(year == 2024) |>
+  group_by(duration, month, member_casual, rideable_type) |>
+  ggplot(aes(x = duration, fill = rideable_type)) + 
+  geom_histogram(position = "dodge") +
   labs(
-    x = "Membership Type",
-    y = "Median duration of ride",
-    title = "Duration of Citibike rides in July 2024",
+    x = "Duration of Ride",
+    y = "Count",
+    title = "Duration of Citibike rides in 2024",
     fill = "Bike Type",
-    caption = "2024 Citibike data provided by P8105 was used.") 
+    caption = "2024 Citibike data provided by P8105 was used.") +
+  theme(plot.caption = element_text(size = 10, hjust = 0.5),
+        plot.margin = margin(t = 10, b = 20, l = 10, r = 10)) 
 
-bike_2024_jan + bike_2024_jul
+bike_2024_member = 
+  bike_data |>
+  filter(year == 2024) |>
+  group_by(duration, month, member_casual, rideable_type) |>
+  ggplot(aes(x = duration, fill = member_casual)) + 
+  geom_histogram(position = "dodge") +
+  labs(
+    x = "Duration of Ride",
+    y = "Count",
+    title = "Duration of Citibike rides in 2024",
+    fill = "Membership Type",
+    caption = "2024 Citibike data provided by P8105 was used.") +
+   theme(plot.caption = element_text(size = 10, hjust = 0.5),
+        plot.margin = margin(t = 10, b = 20, l = 10, r = 10)) 
+
+bike_2024_month
+bike_2024_bike
+bike_2024_member
 ```
 
-There were relatively few electric Citi Bikes in 2020, but many more are available now. For data in 2024, make a figure that shows the impact of month, membership status, and bike type on the distribution of ride duration. Comment on your results.
+A figure that shows the median duration of ride for membership type per the bike type is drawn for January and July 2024 data. 
+
+For data in 2024, 
+There were relatively few electric Citi Bikes in 2020, but many more are available now. 
+
+For data in 2024, make a figure that shows the impact of month, membership status, and bike type on the distribution of ride duration. Comment on your results.
 
 
 
