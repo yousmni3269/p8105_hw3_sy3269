@@ -8,7 +8,6 @@ output: github_document
 
 ```{r setup, echo = FALSE, message = FALSE}
 library(tidyverse)
-library(lubridate)
 library(ggridges)
 library(patchwork)
 
@@ -37,8 +36,7 @@ data("ny_noaa")
 
 ny_noaa |>
   group_by(id) |>
-  summarize(n_obs_per_id = n()) |>
-  view()
+  summarize(n_obs_per_id = n())
 
 clean_ny_noaa = 
   ny_noaa |> 
@@ -57,13 +55,11 @@ clean_ny_noaa =
 
 clean_ny_noaa |>
   group_by(id) |>
-  summarize(n_obs_per_id = n()) |>
-  view()
+  summarize(n_obs_per_id = n()) 
 
 clean_ny_noaa |>
   group_by(year) |>
-  summarize(n_obs_per_yr = n()) |>
-  view()
+  summarize(n_obs_per_yr = n()) 
 ```
 
 The NY NOAA data was imported and studied.  
@@ -72,7 +68,7 @@ In the original NOAA data set, there are total of 2,595,176 observations from 74
 
 Then, the data was cleaned and three additional variables for `year`, `month`, and `date` were added. Any observation with missing data were excluded for later analysis. 
 
-In addition, some one the variables were mutated so that they have reasonable units. For instance, to ensure that all data for precipitation, snowfall and snow depth are given in consistent unit of mm, `prcp` values given in tenths of mm were adjusted. Similarly, to ensure the temperature values are given in Celsius, both the `tmax` and `tmin` values that were given in tenths of Celsius were changed. The variable types for `tmax` and `tmin` were also changed to integer as they were originally defined as characters. 
+In addition, some of the variables were mutated so that they have reasonable units. For instance, to ensure that all data for precipitation, snowfall and snow depth are given in consistent unit of mm, `prcp` values given in tenths of mm were adjusted. Similarly, to ensure the temperature values are given in Celsius, both the `tmax` and `tmin` values that were given in tenths of Celsius were changed. The variable types for `tmax` and `tmin` were also changed to integer as they were originally defined as characters. 
 
 The cleaned data was again checked and it was found that with missing data removed, there were only 1,222,433 observations from 214 locations. 
 
@@ -99,28 +95,40 @@ clean_ny_noaa |>
     title = "Average maximum temperature scatterplot",
     x = "Year",
     y = "Average Maximum Temp (C)",
-    caption = "Weather data taken from p8105 ny_noaa datasets."
+    caption = "Weather data is taken from p8105 ny_noaa datasets."
   )
 ```
 
-A two-panel plot showing the average maximum temperature in January and July for each station across the years is shown above. The average maximum temperatures in July seem to be more consistent over the time compared to the average maximum temperatures in January. There is only one notable outlier that fall below the overall distribution in July of late 1980s where are there are several outstanding outliers in both upper and lower area of the distribution in January plot. 
+A two-panel plot showing the average maximum temperature in January and July for each station across the years is shown above. The average maximum temperatures in July seem to be more consistent over the time compared to the average maximum temperatures in January. 
 
+There is only one notable outlier that falls below the overall distribution in July of late 1980s whereas there are several outstanding outliers in both upper and lower area of the distribution in January plot. 
 
-```{r noaa_temp, eval = FALSE, echo = FALSE}
-clean_ny_noaa |>
+```{r temp_snow_plot}
+temp_plot = 
+  clean_ny_noaa |>
   group_by(tmax, tmin, id, year, month) |>
   summarize() |>
-  ggplot(aes(x = tmax, y = tmin)) 
+  ggplot(aes(x = tmax, y = tmin)) +
+  geom_hex() +
+  labs(
+    x = "Maximum Temperature (C)", 
+    y = "Minimum Temperature (C)"
+  )
 
-clean_ny_noaa |>  
+snow_plot = 
+  clean_ny_noaa |>  
   filter(snow > 0, snow < 100) |>
   ggplot(aes(x = snow, y = factor(year))) + 
-  geom_density_ridges(scale = 2, alpha = 0.5)
+  geom_density_ridges(scale = 1.5, alpha = 0.6) + 
+  labs(
+    x = "Snow distribution (mm)",
+    y = "Year"
+  )
+
+temp_plot + snow_plot
 ```
 
-
-### Make a two-panel plot showing (i) tmax vs tmin for the full dataset (note that a scatterplot may not be the best option); and (ii) make a plot showing the distribution of snowfall values greater than 0 and less than 100 separately by year.
-
+A two-panel plot showing (i) tmax vs tmin and (ii)  distribution of snowfall values greater than 0 and less than 100 separately by year is shown above. 
 
 
 # Problem 2
@@ -155,7 +163,7 @@ nhanes_data_df =
 
 An accelerometer data collected in the NHANES study was loaded and cleaned. Demographic data of the participants in the NHANES study was also loaded and cleaned. 
 
-Some of the variables in the demographic data were changed to more self-explanatory values and their types were changed to factor. For instance, values for `sex` variable was changed from 1 and 2 to male and female. 
+Some of the values of variables in the demographic data were changed to more self-explanatory ones and variables with different levels were changed to factor types. For instance, values for `sex` variable was changed from 1 and 2 to male and female. 
 
 In addition, the two data sets were merged into one data frame and participants who did not have full demographic data were excluded. Also, only the participants who were 21 years or older were included in the final data set `nhanes_data_df.`
 
@@ -166,7 +174,7 @@ nhanes_data_df |>
   knitr::kable()
 ```
 
-A reader-friendly table for the number of men and women in each education category was made. 
+A reader-friendly table for the number of men and women in each education category was made. There were more participants in 'more than high school' group than either of the 'high school equivalent' or 'less than high school' group for both female and male.  
 
 ```{r age_distribution}
 nhanes_data_df = 
@@ -192,7 +200,7 @@ nhanes_data_df |>
   )
 ```
 
-Prior to creating a graph, the data was reformatted using `pivot_longer`. Then, `group_by` and `summarize` function was used to calculate the total_activity that sums up the accelerometer data measured every minute throughout the day. A visualization of the age distributions for men and women in each education category was created. 
+Prior to creating a graph, the data was reformatted using `pivot_longer`. Then, `group_by` and `summarize` function was used to calculate the total_activity that sums up the accelerometer data measured every minute throughout the day. Next, a visualization of the age distributions for men and women in each education category was created. 
 
 For education level 'more than high school,' there are more of the younger participants who are under 40 than the older participants. The distribution for both male and female are skewed to the right. 
 
@@ -216,16 +224,22 @@ nhanes_data_df |>
   )
 ```
 
-Overall, the younger the participants are, the higher the total activity is for both female and male regardless of the education level. The regression line for both males and females in all three different education levels have similar tendencies. However, in 'high school equivalent' group, there is a female participant around 30 who has a relatively low total-activity observation compared to females in her age and another female participant around the same age with a notably high observation. 
+The total activities of participants were plotted against their ages as shown above.  
 
-It can be also seen that in 'high school equivalent' and 'more than high school' groups, females tend to have higher total activity than males in all age groups. However, for 'less than high school' group, only female participants who are younger than 40 have higher total activity than males; for participants over 40, higher total activity observations can be found in males according to the  regression line added with `geom_smooth`.
+According to the graph, higher total activity can be seen in the younger participants in general, regardless of the education level. Also, the regression line for both males and females in all three different education levels have similar tendencies. 
+
+However, in 'high school equivalent' group, there is a female participant around 30 who has a relatively low total-activity observation compared to other females in her age and another female participant around the same age with a notably high observation. 
+
+It can be also seen that in 'high school equivalent' and 'more than high school' groups, females tend to have higher total activities than males in all age groups. 
+
+However, for 'less than high school' group, only female participants who are younger than 40 have higher total activity than males; for participants over 40, higher total activity observations can be found in males according to the  regression line added with `geom_smooth`.
 
 ```{r activity_time}
 nhanes_data_df |>
   group_by(seqn, hour = rep(1:24, times = 228, each = 60), education, sex) |>
   summarize(mims_hr = sum(mims, na.rm = TRUE), .groups = 'drop') |>
   ggplot(aes(x = hour, y = mims_hr, color = sex)) + 
-  geom_point(size=0.5) + 
+  geom_point(size=0.5, alpha=0.8) + 
   geom_smooth(se = FALSE) + 
   facet_grid(. ~ education) + 
   labs(
@@ -236,6 +250,11 @@ nhanes_data_df |>
   )
 ```
 
+A three-panel plot that shows the 24-hour activity time courses for each education level with color code corresponding to sex is displayed above. 
+
+The regression line for all three education levels show similar tendencies; the MIMS value starts to increase after 5 hours into the study and stabilizes after 10 hours, then slowly decreases around 20 hours into the study. 
+
+The raw data for all three groups also show similar pattern, but there are extreme outliers in 'more than high school' education level. 
 
 # Problem 3
 
@@ -278,8 +297,7 @@ A reader friendly table showing the total number of rides separating casual ride
 
 In all four combination of year and month, there were notably more member rides than casual rides. Both member rides increased in 2024 compared to 2020 for both month January and July. 
 
-There tends to more rides in July than in January, possibly due to weather.
-
+There tends to more rides in July than in January, possibly due to the weather.
 
 ```{r citibike_table}
 bike_jul_2024 |>
@@ -315,10 +333,7 @@ A plot showing the median duration of ride for every day of the week is shown fo
 
 The longest median duration can be seen in July 2020 data, especially during the weekends. However, the median duration of rides is not significantly greater in the weekends for 2024 data. 
 
-
 ```{r electric_bike_plot}
-#bike_2024_month = 
-
 bike_data |>
   filter(year == 2024) |>
   group_by(rideable_type, duration, month, member_casual) |>
