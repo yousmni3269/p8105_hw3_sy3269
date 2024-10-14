@@ -169,8 +169,8 @@ In addition, the two data sets were merged into one data frame and participants 
 
 ```{r nhanes_table}
 nhanes_data_df |>
-  group_by(education, sex) |>
-  janitor::tabyl(education, sex) |>
+  group_by(sex, education) |>
+  janitor::tabyl(sex, education) |>
   knitr::kable()
 ```
 
@@ -190,7 +190,7 @@ nhanes_data_df |>
   group_by(seqn, sex, age, education) |>
   summarize(total_activity = sum(mims, na.rm = TRUE)) |>
   ggplot(aes(x = age, fill = sex)) +
-  geom_histogram(position = "dodge") + 
+  geom_density(alpha = .5) + 
   facet_grid(. ~ education) +
   labs(
     title = "Age distribution of participants in different education levels",
@@ -336,11 +336,9 @@ The longest median duration can be seen in July 2020 data, especially during the
 ```{r electric_bike_plot}
 bike_data |>
   filter(year == 2024) |>
-  group_by(rideable_type, duration, month, member_casual) |>
-  summarize() |>
   ggplot(aes(x = rideable_type, y = duration, fill = member_casual)) + 
   geom_violin() +
-  facet_wrap(~ month) +
+  facet_grid(month ~ member_casual) +
   labs(
     x = "Bike Type", 
     y = "Ride Duration",
